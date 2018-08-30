@@ -1,0 +1,1 @@
+ssh -i KEY_NAME.pem ec2-user@IP_ADDRESS -o 'proxycommand ssh -i KEY_NAME.pem -W %h:%p ec2-user@BASTION_HOST'
