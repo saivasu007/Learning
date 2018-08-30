@@ -1,0 +1,321 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "jenkins.fullname" . }}
+  labels:
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    component: "{{ .Release.Name }}-{{ .Values.Master.Name }}"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      component: "{{ .Release.Name }}-{{ .Values.Master.Component }}"
+  template:
+    metadata:
+      labels:
+        app: {{ template "jenkins.fullname" . }}
+        heritage: {{ .Release.Service | quote }}
+        release: {{ .Release.Name | quote }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        component: "{{ .Release.Name }}-{{ .Values.Master.Component }}"
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.Master.NodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.Master.NodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.Master.Tolerations }}
+      tolerations:
+{{ toYaml .Values.Master.Tolerations | indent 8 }}
+      {{- end }}
+      securityContext:
+        runAsUser: {{ default 0 .Values.Master.RunAsUser }}
+{{- if and (.Values.Master.RunAsUser) (.Values.Master.FsGroup) }}
+{{- if not (eq .Values.Master.RunAsUser 0.0) }}
+        fsGroup: {{ .Values.Master.FsGroup }}
+{{- end }}
+{{- end }}
+      serviceAccountName: {{ if .Values.rbac.install }}{{ template "jenkins.fullname" . }}{{ else }}"{{ .Values.rbac.serviceAccountName }}"{{ end }}
+      initContainers:
+        - name: "copy-default-config"
+          image: "{{ .Values.Master.Image }}:{{ .Values.Master.ImageTag }}"
+          imagePullPolicy: "{{ .Values.Master.ImagePullPolicy }}"
+          command: [ "sh", "/var/jenkins_config/apply_config.sh" ]
+          volumeMounts:
+            -
+              mountPath: /var/jenkins_home
+              name: jenkins-home
+            -
+              mountPath: /var/jenkins_config
+              name: jenkins-config
+            -
+              mountPath: /var/jenkins_scripts_config
+              name: jenkins-scripts-config
+            {{- if .Values.Master.CredentialsXmlSecret }}
+            -
+              mountPath: /var/jenkins_credentials
+              name: jenkins-credentials
+              readOnly: true
+            {{- end }}
+            {{- if .Values.Master.SecretsFilesSecret }}
+            -
+              mountPath: /var/jenkins_secrets
+              name: jenkins-secrets
+              readOnly: true
+            {{- end }}
+            - name: test-jenkins-nexus-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-nexus-secrets"
+            - name: test-jenkins-checkmarx-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-checkmarx-secrets"
+            - name: test-jenkins-splunk-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-splunk-secrets"
+            - name: test-jenkins-github-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-github-secrets"
+            - name: test-jenkins-codecov-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-codecov-secrets"
+            - name: test-jenkins-svc-accounts
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-svc-accounts"
+            - name: maven-settings
+              readOnly: true
+              mountPath: "maven-settings"
+            #- name: test-jenkins-artifact-secrets
+            #  readOnly: true
+            #  mountPath: "/var/run/test-jenkins-artifact-secrets"
+            #- name: test-jenkins-sonar-secrets
+            #  readOnly: true
+            #  mountPath: "/var/run/test-jenkins-sonar-secrets"
+            #- name: test-jenkins-npm-secrets
+            #  readOnly: true
+            #  mountPath: "/var/run/test-jenkins-npm-secrets"
+            {{- if .Values.Master.Jobs }}
+            -
+              mountPath: /var/jenkins_jobs
+              name: jenkins-jobs
+              readOnly: true
+            {{- end }}
+            -
+              mountPath: /usr/share/jenkins/ref/secrets/
+              name: secrets-dir
+      containers:
+        - name: {{ template "jenkins.fullname" . }}
+          image: "{{ .Values.Master.Image }}:{{ .Values.Master.ImageTag }}"
+          imagePullPolicy: "{{ .Values.Master.ImagePullPolicy }}"
+          {{- if .Values.Master.UseSecurity }}
+          args: [ "--argumentsRealm.passwd.$(ADMIN_USER)=$(ADMIN_PASSWORD)",  "--argumentsRealm.roles.$(ADMIN_USER)=admin"]
+          {{- end }}
+          env:
+            - name: JAVA_OPTS
+              value: "{{ default "" .Values.Master.JavaOpts}}"
+            - name: JENKINS_OPTS
+              value: "--prefix=/{{ .Release.Name }}"
+            - name: JENKINS_MASTER_URL
+            {{- if .Values.Master.Ingress.TLS }}
+              value: "https://{{ .Values.Master.HostName }}/{{ .Release.Name }}"
+            {{- else }}
+              value: "http://{{ .Values.Master.HostName }}/{{ .Release.Name }}"
+            {{- end }}
+            - name: NEXUS_PROXY_URL
+            {{- if .Values.Master.Ingress.TLS }}
+              value: "https://{{ .Values.Master.HostName }}/nexus"
+            {{- else }}
+              value: "http://{{ .Values.Master.HostName }}/nexus"
+            {{- end }}
+            - name: CLUSTER_URL
+            {{- if .Values.Master.Ingress.TLS }}
+              value: "https://{{ .Values.Master.HostName }}"
+            {{- else }}
+              value: "http://{{ .Values.Master.HostName }}"
+            {{- end }}
+            {{- if .Values.Master.UseSecurity }}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "jenkins.fullname" . }}
+                  key: jenkins-admin-password
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "jenkins.fullname" . }}
+                  key: jenkins-admin-user
+            {{- end }}
+
+          ports:
+            - containerPort: {{ .Values.Master.ContainerPort }}
+              name: http
+            - containerPort: {{ .Values.Master.SlaveListenerPort }}
+              name: slavelistener
+            {{- if .Values.Master.JMXPort }}
+            - containerPort: {{ .Values.Master.JMXPort }}
+              name: jmx
+            {{- end }}
+{{- if .Values.Master.HealthProbes }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.Master.ContainerPort }}
+            initialDelaySeconds: {{ .Values.Master.HealthProbesTimeout }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.Master.ContainerPort }}
+            initialDelaySeconds: {{ .Values.Master.HealthProbesTimeout }}
+{{- end }}
+          resources:
+            requests:
+              cpu: "{{ .Values.Master.Cpu }}"
+              memory: "{{ .Values.Master.Memory }}"
+          volumeMounts:
+{{- if .Values.Persistence.mounts }}
+{{ toYaml .Values.Persistence.mounts | indent 12 }}
+{{- end }}
+            -
+              mountPath: /var/jenkins_home
+              name: jenkins-home
+              readOnly: false
+            -
+              mountPath: /var/jenkins_config
+              name: jenkins-config
+              readOnly: true
+            -
+              mountPath: /var/jenkins_scripts_config
+              name: jenkins-scripts-config
+              readOnly: true
+            {{- if .Values.Master.CredentialsXmlSecret }}
+            -
+              mountPath: /var/jenkins_credentials
+              name: jenkins-credentials
+              readOnly: true
+            {{- end }}
+            {{- if .Values.Master.SecretsFilesSecret }}
+            -
+              mountPath: /var/jenkins_secrets
+              name: jenkins-secrets
+              readOnly: true
+            {{- end }}
+            - name: test-jenkins-nexus-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-nexus-secrets"
+            - name: test-jenkins-checkmarx-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-checkmarx-secrets"
+            - name: test-jenkins-splunk-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-splunk-secrets"
+            - name: test-jenkins-github-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-github-secrets"
+            - name: test-jenkins-codecov-secrets
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-codecov-secrets"
+            - name: test-jenkins-svc-accounts
+              readOnly: true
+              mountPath: "/var/run/test-jenkins-svc-accounts"
+            - name: maven-settings
+              readOnly: true
+              mountPath: "/var/run/maven-settings"
+            #- name: test-jenkins-artifact-secrets
+            #  readOnly: true
+            #  mountPath: "/var/run/test-jenkins-artifact-secrets"
+            #- name: test-jenkins-sonar-secrets
+            #  readOnly: true
+            #  mountPath: "/var/run/test-jenkins-sonar-secrets"
+            #- name: test-jenkins-npm-secrets
+            #  readOnly: true
+            #  mountPath: "/var/run/test-jenkins-npm-secrets"
+            {{- if .Values.Master.Jobs }}
+            -
+              mountPath: /var/jenkins_jobs
+              name: jenkins-jobs
+              readOnly: true
+            {{- end }}
+            -
+              mountPath: /usr/share/jenkins/ref/secrets/
+              name: secrets-dir
+              readOnly: false
+      volumes:
+{{- if .Values.Persistence.volumes }}
+{{ toYaml .Values.Persistence.volumes | indent 6 }}
+{{- end }}
+      - name: jenkins-config
+        configMap:
+          name: {{ template "jenkins.fullname" . }}
+      - name: jenkins-scripts-config
+        configMap:
+          name: {{ template "jenkins.fullname" . }}-scripts
+      {{- if .Values.Master.CredentialsXmlSecret }}
+      - name: jenkins-credentials
+        secret:
+          secretName: {{ .Values.Master.CredentialsXmlSecret }}
+      {{- end }}
+      {{- if .Values.Master.SecretsFilesSecret }}
+      - name: jenkins-secrets
+        secret:
+          secretName: {{ .Values.Master.SecretsFilesSecret }}
+      {{- end }}
+      - name: test-jenkins-nexus-secrets
+        secret:
+          secretName: test-jenkins-nexus-secrets
+          defaultMode: 420
+      - name: test-jenkins-checkmarx-secrets
+        secret:
+          secretName: test-jenkins-checkmarx-secrets
+          defaultMode: 420
+      - name: test-jenkins-splunk-secrets
+        secret:
+          secretName: test-jenkins-splunk-secrets
+          defaultMode: 420
+      - name: test-jenkins-github-secrets
+        secret:
+          secretName: test-jenkins-github-secrets
+          defaultMode: 420
+      - name: test-jenkins-codecov-secrets
+        secret:
+          secretName: test-jenkins-codecov-secrets
+          defaultMode: 420
+      - name: test-jenkins-svc-accounts
+        secret:
+          secretName: test-jenkins-svc-accounts
+          defaultMode: 420
+      - name: maven-settings
+        secret:
+          secretName: maven-settings
+          defaultMode: 420
+      #- name: test-jenkins-artifact-secrets
+      #  secret:
+      #    secretName: test-jenkins-artifact-secrets
+      #    defaultMode: 420
+      #- name: test-jenkins-sonar-secrets
+      #  secret:
+      #    secretName: test-jenkins-sonar-secrets
+      #    defaultMode: 420
+      #- name: test-jenkins-npm-secrets
+      #  secret:
+      #    secretName: test-jenkins-npm-secrets
+      #    defaultMode: 420
+      {{- if .Values.Master.Jobs }}
+      - name: jenkins-jobs
+        configMap:
+          name: {{ template "jenkins.fullname" . }}-jobs
+      {{- end }}
+      - name: secrets-dir
+        emptyDir: {}
+      - name: jenkins-home
+      {{- if .Values.Persistence.Enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.Persistence.ExistingClaim | default (include "jenkins.fullname" .) }}
+      {{- else }}
+        emptyDir: {}
+      {{- end -}}
+{{- if .Values.Master.ImagePullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.Master.ImagePullSecret }}
+{{- end -}}
