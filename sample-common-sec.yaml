@@ -1,0 +1,13 @@
+{{- $commonSecretsNamespace := .Values.Master.CommonSecrets.Namespace -}}
+{{ if ne .Values.Master.CommonSecrets.Namespace .Release.Namespace }}
+{{- range .Values.Master.CommonSecrets.Secrets }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ . }}
+  annotations:
+    replicator.v1.mittwald.de/replicate-from: {{ $commonSecretsNamespace }}/{{ . }}
+data:
+{{- end }} # range
+{{end}} # if
