@@ -1,0 +1,10 @@
+blueocean:1.6.0
+kubernetes:1.8.4
+timestamper:1.8.10
+junit:1.24
+jacoco:3.0.1
+clover:4.9.0
+findbugs:4.72
+pipeline-githubnotify-step:1.0.4
+pipeline-utility-steps:2.1.0
+pipeline-maven:3.5.8
