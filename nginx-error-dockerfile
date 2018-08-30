@@ -1,0 +1,4 @@
+FROM aledbf/nginx-error-server:0.1
+ADD nginx.conf /etc/nginx/nginx.conf
+COPY www/ /var/www/html/
+VOLUME /var/www/html
