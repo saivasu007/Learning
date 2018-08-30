@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "jenkins.fullname" . }}-scripts
+data:
+  22-PipelineLibrary.groovy: |-
+{{ .Files.Get "src/main/groovy/jenkins/PipelineLibrary.groovy" | indent 4 }}
+  11-ConfigureJenkinsMaster.groovy: |-
+{{ .Files.Get "src/main/groovy/jenkins/ConfigureJenkinsMaster.groovy" | indent 4 }}
+  31-CheckmarxCredentials.groovy: |-
+{{ .Files.Get "src/main/groovy/jenkins/CheckmarxCredentials.groovy" | indent 4 }}
+  32-NexusCredentials.groovy: |-
+{{ .Files.Get "src/main/groovy/NexusCredentials.groovy" | indent 4 }}
