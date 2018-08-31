@@ -1,0 +1,69 @@
+brew install kubectl (or) curl -Lo kubectl http://storage.googleapis.com/kubernetes-release/release/v1.3.0/bin/darwin/amd64/kubectl
+curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.25.0/minikube-darwin-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: jenkins
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      containers:
+      - name: jenkins
+        image: jenkins:2.32.2
+        ports:
+        - containerPort: 8080
+kubectl create -f jenkins-deployment.yaml
+kubectl get deployments
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: jenkins
+kubectl create -f jenkins-service.yaml
+kubectl get services
+
+
+minikube stop; minikube delete &&
+docker stop $(docker ps -aq) &&
+rm -rf ~/.kube ~/.minikube &&
+sudo rm -rf /usr/local/bin/localkube /usr/local/bin/minikube &&
+launchctl stop '*kubelet*.mount' &&
+launchctl stop localkube.service &&
+launchctl disable localkube.service &&
+sudo rm -rf /etc/kubernetes/ &&
+docker system prune -af --volumes
+
+
+
+Step 1: Docker Private Registry
+Create a new Docker Machine that acts as the registry:
+docker-machine create -d virtualbox registry
+Create the directory to hold images:
+docker-machine ssh registry "mkdir ~/data"
+Point the Docker CLI to the machine:
+eval $(docker-machine env registry)
+Pull and run the registry image:
+docker run -d -p 80:5000 --restart=always --name registry   -v /home/docker/data:/var/lib/registry registry:2
+Finally, make note of the IP address of Docker Machine running the registry:
+REG_IP=`docker-machine ip registry`
+
+Minikube and Local Docker Image Integration :
+
+You can point your docker client to the VM's docker daemon by running
+eval $(minikube docker-env)
+Then you can build your image normally and create your kubernetes resources normally using kubectl. Make sure that you have
+imagePullPolicy: IfNotPresent
+in your YAML or JSON specs.
+Additionally, there is a flag to pass in insecure registries to the minikube VM. However, this must be specified the first time you create the machine.
+minikube start --insecure-registry
+
