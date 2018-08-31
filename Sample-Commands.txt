@@ -1,0 +1,78 @@
+kubectl delete deployments jenkins -n srinivas
+kubectl delete service jenkins -n srinivas
+
+-- Create minikube deployment using local docker image :
+
+kubectl run jenkins --image=jenkins:latest --port=8080 --image-pull-policy: IfNotPresent
+
+kubectl expose deployment jenkins --type=NodePort
+
+docker rm $(docker ps -a -q)
+# Delete all images
+docker rmi $(docker images -q)
+MTVL160e7a993:docker sthungathurti$ 
+
+sthunga-nex-jen-plugin-upgrade​-SNAPSHOT
+
+Update the image of your Deployment:
+
+kubectl set image deployment/hello-node hello-node=hello-node:v2
+
+minikube addons list
+minikube addons enable heapster
+kubectl get po,svc -n kube-system
+minikube addons open heapster
+
+Optionally, force removal of the Docker images created:
+
+docker rmi hello-node:v1 hello-node:v2 -f
+
+Optionally, stop the Minikube VM:
+
+minikube stop
+eval $(minikube docker-env)
+
+https://gist.github.com/thomastaylor312/48d8904cc7c7aec10aaa0c75dc383b4a
+https://github.com/edx/jenkins-configuration/blob/master/src/main/groovy/3importCredentials.groovy
+
+L3Zhci9saWIvY2FjZXJ0LmNlcg==
+dGVzdGNlcnRpZmljYXRlcGFzc3dvcmQxMjM=
+
+My docker API Key : 72e26ec6-b42f-4fb7-a4ca-8f198edc6020
+
+
+######### Docker Daemon #############
+docker system prune --all
+docker system prune --volumes
+docker system info
+docker system df
+
+docker tag ibp-jenkins docker.artifactory.a.intuit.com/personal/sthungathurti:ibp-jenkins
+docker push docker.artifactory.a.intuit.com/personal/sthungathurti:ibp-jenkins
+
+-- Get Init Container Log Information
+kubectl logs ibptestjenkins-7fb76bc6f5-qgb2z -c ibptestjenkins -n srinivas
+
+-- Get Init Container Status :
+kubectl get pod nginx --template '{{.status.initContainerStatuses}}'
+
+-- Get Cluster CPU/Mem Information (POD Debug process)
+kubectl get nodes -o yaml | grep '\sname\|cpu\|memory'
+
+
+-- Get the logs of current container
+kubectl logs ${POD_NAME} ${CONTAINER_NAME}
+
+https://kubernetes.io/docs/tasks/debug-application-cluster/debug-init-containers/#checking-the-status-of-init-containers
+
+ncp /usr/share/jenkins/ref/jenkins_scripts_config/*.groovy /var/jenkins_home/init.groovy.d/
+
+
+volumeMounts:
+        - mountPath: /var/jenkins_secrets
+          name: jenkins-secrets
+          readOnly: true
+      volumes:
+      - name: jenkins-secrets
+        secret:
+          secretName: jenkins-kubesecrets
