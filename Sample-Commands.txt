@@ -18,6 +18,13 @@ Update the image of your Deployment:
 
 kubectl set image deployment/hello-node hello-node=hello-node:v2
 
+The Dashboard UI is not deployed by default. To deploy it, run the following command:
+-------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------------------
+kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+-------------------------------------------------------------------------------------------------------------
+
 minikube addons list
 minikube addons enable heapster
 kubectl get po,svc -n kube-system
