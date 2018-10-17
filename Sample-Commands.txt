@@ -21,9 +21,12 @@ kubectl set image deployment/hello-node hello-node=hello-node:v2
 The Dashboard UI is not deployed by default. To deploy it, run the following command:
 -------------------------------------------------------------------------------------
 
--------------------------------------------------------------------------------------------------------------
-kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
--------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------
+==> kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+==> kubectl proxy
+-- Kubectl will handle authentication with apiserver and make Dashboard available at 
+==> http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/.
+---------------------------------------------------------------------------------------------------------------------
 
 minikube addons list
 minikube addons enable heapster
