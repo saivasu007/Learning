@@ -26,6 +26,8 @@ The Dashboard UI is not deployed by default. To deploy it, run the following com
 ==> kubectl proxy
 -- Kubectl will handle authentication with apiserver and make Dashboard available at 
 ==> http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/.
+    OR
+    http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/service/default/jenkins?namespace=default
 ---------------------------------------------------------------------------------------------------------------------
 
 minikube addons list
